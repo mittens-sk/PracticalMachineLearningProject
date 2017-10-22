@@ -1,0 +1,157 @@
+---
+title: "Prediction Asignment"
+author: "mittens@sk.com"
+date: "10-22-2017"
+output: html_document
+---
+
+## Synopsis
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+## Data
+
+There is the "classe" variable in the training set which we will use for determining the class. The goal of this project is to predict the manner in which they did the exercise.
+Let's start from loading two data, trainset and dataset.
+
+```{r echo=T, cache=T}
+setwd("d:\\lomolith\\GoogleDrive\\coursera\\DS_8_practical_ml\\")
+
+data_train_orig<-read.csv("pml-training.csv", na.strings=c("","NA","#DIV/0"), stringsAsFactors=F)
+data_test_orig<-read.csv("pml-testing.csv", na.strings=c("NA","#DIV/0"), stringsAsFactors=F)
+```
+
+Make sure values of 'classe' columns are vector, not character.
+
+```{r echo=T, cache=T}
+data_train_orig$classe<-as.factor(data_train_orig$classe)
+```
+
+The imported data have 160 variables.
+
+```{r echo=T, cache=T}
+dim(data_train_orig)
+dim(data_test_orig)
+```
+
+## Cleaning data
+
+Both dataset contain many NA values which is not good for training. Unfortunately, every row has more than one column with NA thus it is not a good idea removing all rows contain NA.
+
+```{r echo=T, cache=T}
+nrow(na.omit(data_train_orig))
+nrow(na.omit(data_test_orig))
+```
+
+Therefore, we will remove unnecesary columns rather than rows.
+
+Before we start, remove some string columns like user name and time stamp. (time stamp information is also stored separately in the raw_timestamp_part_1 and raw_timestamp_part_1)
+
+```{r echo=T, cache=T}
+data_train<-data_train_orig[,-which(names(data_train_orig) %in% c("X","user_name","cvtd_timestamp","new_window"))]
+data_test<-data_test_orig[,-which(names(data_train_orig) %in% c("X","user_name","cvtd_timestamp","new_window"))]
+
+```
+
+First, remove all near zero value columnss with caret package.
+
+```{r echo=T, cache=T}
+library(caret)
+
+column_nz<-nearZeroVar(data_train_orig)
+data_train<-data_train[,-column_nz]
+data_test<-data_test[,-column_nz]
+```
+
+Then, remove all columns which contain NA value.
+
+```{r echo=T, cache=T}
+column_na<-apply(data_train, 2, function(x) {sum(is.na(x))==0})
+data_train<-data_train[,which(column_na)]
+data_test<-data_test[,which(column_na)]
+```
+
+Now we get NA-free train data set with 19,622 observations and 59 variables.
+
+```{r echo=T, cache=T}
+dim(data_train)
+dim(data_test)
+```
+
+## Training data
+
+Before staring model training, we need to build a validation set from the train data set.
+
+```{r echo=T, cache=T}
+set.seed(1)
+row_train<-createDataPartition(data_train$classe, p=0.6, list=F)
+data_train_in<-data_train[row_train,]
+data_train_out<-data_train[-row_train,]
+```
+
+Now we have 3 data sets: training set for building model, validation set and the test set for prediction.
+
+For building models, we will test 3 diffrent most-common methods:
+
+1) Neural Network
+2) Random Forest
+3) Decision Tree
+
+**Random Forest**
+
+We start from the widely used "Random Forest Model" first.
+
+```{r echo=T, cache=T}
+library(randomForest)
+set.seed(2)
+model_rf<-randomForest(classe~., data=data_train_in)
+valid_rf<-predict(model_rf, data_train_out, type="class")
+result_rf<-confusionMatrix(valid_rf, data_train_out$classe)
+result_rf
+```
+
+Based on the validation set, The random forest model has 99.77% accuracy which is quite high accuray.
+
+**Neural Network**
+
+For an neural network model, we run the analysis in parallel with 4 clusters by doParallel package.
+
+```{r echo=T, cache=T}
+library(doParallel)
+cl<-(makeCluster(4))
+registerDoParallel()
+set.seed(2)
+model_nn<-train(classe~., data=data_train_in, method='nnet', preProcess=c('center','scale'), allowParallel=T)
+stopCluster(cl)
+remove(cl)
+registerDoSEQ()
+
+valid_nn<-predict(model_nn, data_train_out)
+result_nn<-confusionMatrix(valid_nn, data_train_out$classe)
+result_nn
+```
+
+The model shows 69.02% accuracy which is lower than the previous random forest model. Of course, we can optimize the result by layering perceptron or other hyper parameters but we only test default options here for simple comparison between different approaches.
+
+**Decision Tree**
+
+Finally, we do decision tree model and compare the result with previous ones.
+
+```{r echo=T, cache=T}
+library(rpart)
+set.seed(4)
+model_dt<-rpart(classe~., data=data_train_in, method="class")
+valid_dt<-predict(model_dt, data_train_out, type="class")
+result_dt<-confusionMatrix(valid_dt, data_train_out$classe)
+result_dt
+```
+
+Again, we do not have any optimization for the decision tree model like pruning since it is done for a simple comparison. Here, the result of the decision tree (83.56% of accuracy) is better than the result of the neural network model and worse than the one of random forest.
+
+## Prediction
+
+Based on the above result, we can say the random forest model can produce the most reliable result of all.
+
+```{r echo=T, cache=T}
+predict(model_rf, data_test[,-ncol(data_test)], type="class")
+```
