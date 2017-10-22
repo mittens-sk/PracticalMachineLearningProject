@@ -166,13 +166,14 @@ data_train&lt;-data_train[,which(column_na)]
 data_test&lt;-data_test[,which(column_na)]</code></pre>
 <p>Now we get NA-free train data set with 19,622 observations and 59 variables.</p>
 <pre class="r"><code>dim(data_train)</code></pre>
-<pre><code>## [1] 19622    45</code></pre>
+<pre><code>## [1] 19622    47</code></pre>
 <pre class="r"><code>dim(data_test)</code></pre>
-<pre><code>## [1] 20 45</code></pre>
+<pre><code>## [1] 20 47</code></pre>
 </div>
-<div id="training-data" class="section level2">
-<h2>Training data</h2>
-<p>Before staring model training, we need to build a validation set from the train data set.</p>
+<div id="training-data-sets-and-the-expected-out-of-sample-eror" class="section level2">
+<h2>Training data sets and the expected out-of-sample eror</h2>
+<p>When the accuracy is the proportion of correct classified observations over the total sample data set, expected accuracy is the accuracy in the out-of-samples. For calculating expected out-of-sample error, we need independent test sets when we can calculate accuray simply from the validation set which is the subset of training dataset.</p>
+<p>Thus, we need to build a validation set from the train data set before model training, .</p>
 <pre class="r"><code>set.seed(1)
 row_train&lt;-createDataPartition(data_train$classe, p=0.6, list=F)
 data_train_in&lt;-data_train[row_train,]

@@ -23,7 +23,7 @@ data_test_orig<-read.csv("pml-testing.csv", na.strings=c("NA","#DIV/0"), strings
 
 Make sure values of 'classe' columns are vector, not character.
 
-```{r echo=T, cache=T}
+```{r echo=T, cache=F}
 data_train_orig$classe<-as.factor(data_train_orig$classe)
 ```
 
@@ -47,7 +47,7 @@ Therefore, we will remove unnecesary columns rather than rows.
 
 Before we start, remove some string columns like user name and time stamp. (time stamp information is also stored separately in the raw_timestamp_part_1 and raw_timestamp_part_1)
 
-```{r echo=T, cache=T}
+```{r echo=T, cache=F}
 data_train<-data_train_orig[,-which(names(data_train_orig) %in% c("X","user_name","cvtd_timestamp","new_window"))]
 data_test<-data_test_orig[,-which(names(data_train_orig) %in% c("X","user_name","cvtd_timestamp","new_window"))]
 
@@ -55,7 +55,7 @@ data_test<-data_test_orig[,-which(names(data_train_orig) %in% c("X","user_name",
 
 First, remove all near zero value columnss with caret package.
 
-```{r echo=T, cache=T}
+```{r echo=T, cache=F}
 library(caret)
 
 column_nz<-nearZeroVar(data_train_orig)
@@ -65,7 +65,7 @@ data_test<-data_test[,-column_nz]
 
 Then, remove all columns which contain NA value.
 
-```{r echo=T, cache=T}
+```{r echo=T, cache=F}
 column_na<-apply(data_train, 2, function(x) {sum(is.na(x))==0})
 data_train<-data_train[,which(column_na)]
 data_test<-data_test[,which(column_na)]
@@ -78,11 +78,13 @@ dim(data_train)
 dim(data_test)
 ```
 
-## Training data
+## Training data sets and the expected out-of-sample eror
 
-Before staring model training, we need to build a validation set from the train data set.
+When the accuracy is the proportion of correct classified observations over the total sample data set, expected accuracy is the accuracy in the out-of-samples. For calculating expected out-of-sample error, we need independent test sets when we can calculate accuray simply from the validation set which is the subset of training dataset.
 
-```{r echo=T, cache=T}
+Thus, we need to build a validation set from the train data set before model training, .
+
+```{r echo=T, cache=F}
 set.seed(1)
 row_train<-createDataPartition(data_train$classe, p=0.6, list=F)
 data_train_in<-data_train[row_train,]
@@ -90,6 +92,7 @@ data_train_out<-data_train[-row_train,]
 ```
 
 Now we have 3 data sets: training set for building model, validation set and the test set for prediction.
+
 
 For building models, we will test 3 diffrent most-common methods:
 
@@ -101,7 +104,7 @@ For building models, we will test 3 diffrent most-common methods:
 
 We start from the widely used "Random Forest Model" first.
 
-```{r echo=T, cache=T}
+```{r echo=T, cache=F}
 library(randomForest)
 set.seed(2)
 model_rf<-randomForest(classe~., data=data_train_in)
@@ -116,7 +119,7 @@ Based on the validation set, The random forest model has 99.77% accuracy which i
 
 For an neural network model, we run the analysis in parallel with 4 clusters by doParallel package.
 
-```{r echo=T, cache=T}
+```{r echo=T, cache=F}
 library(doParallel)
 cl<-(makeCluster(4))
 registerDoParallel()
@@ -137,7 +140,7 @@ The model shows 69.02% accuracy which is lower than the previous random forest m
 
 Finally, we do decision tree model and compare the result with previous ones.
 
-```{r echo=T, cache=T}
+```{r echo=T, cache=F}
 library(rpart)
 set.seed(4)
 model_dt<-rpart(classe~., data=data_train_in, method="class")
@@ -152,6 +155,6 @@ Again, we do not have any optimization for the decision tree model like pruning 
 
 Based on the above result, we can say the random forest model can produce the most reliable result of all.
 
-```{r echo=T, cache=T}
+```{r echo=T, cache=F}
 predict(model_rf, data_test[,-ncol(data_test)], type="class")
 ```
